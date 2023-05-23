@@ -1,0 +1,64 @@
+import requests
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+# CoinGecko API endpoint for top coins
+API_URL = "https://api.coingecko.com/api/v3/coins/markets"
+
+# Function to get the top coins based on 24-hour performance
+def get_top_coins():
+    params = {
+        'vs_currency': 'usd',  # You can change the currency if needed
+        'order': 'market_cap_desc',
+        'per_page': 5,
+        'page': 1,
+        'sparkline': False,
+        'price_change_percentage': '24h'
+    }
+    
+    response = requests.get(API_URL, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        return None
+
+# Function to handle the /start command
+def start(update, context):
+    reply_markup = ReplyKeyboardMarkup([['/topcoins']], one_time_keyboard=True)
+    update.message.reply_text('Welcome to the CryptoBot! Type /topcoins to see the top coins in the last 24 hours.', reply_markup=reply_markup)
+
+# Function to handle the /topcoins command
+def top_coins(update, context):
+    coins = get_top_coins()
+    
+    if coins:
+        message = "Top coins in the last 24 hours:\n\n"
+        for coin in coins:
+            name = coin['name']
+            price_change_percentage = coin['price_change_percentage_24h']
+            message += f"{name}: {price_change_percentage:.2f}%\n"
+    else:
+        message = "Failed to retrieve top coins data."
+    
+    update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
+
+# Function to handle unknown commands
+def unknown(update, context):
+    update.message.reply_text("Sorry, I don't understand that command.")
+
+# Function to run the bot
+def run_bot():
+    updater = Updater('YOUR_TELEGRAM_BOT_TOKEN', use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("topcoins", top_coins))
+    dp.add_handler(MessageHandler(Filters.command, unknown))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    run_bot()
